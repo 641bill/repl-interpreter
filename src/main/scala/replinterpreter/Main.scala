@@ -94,7 +94,8 @@ object Main {
 			// case 4: objectName and methodName
 			else if (msg.startsWith("objectNameAndMethodName:")) {
 				val objectNameAndMethodName = msg.substring("objectNameAndMethodName:".length)
-				val objectNameReceivedFromJVM = objectNameAndMethodName.split(":")(0)
+				val objectNameReceivedFromJVM = if (objectNameAndMethodName.split(":")(0).last != '$') 
+					objectNameAndMethodName.split(":")(0) + "$" else objectNameAndMethodName.split(":")(0)
 				val methodNameReceivedFromJVM = objectNameAndMethodName.split(":")(1)
 				println("objectName: " + objectNameReceivedFromJVM)
 				println("methodName: " + methodNameReceivedFromJVM)
