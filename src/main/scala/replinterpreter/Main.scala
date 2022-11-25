@@ -13,14 +13,20 @@ import scala.scalajs.js
 import org.scalajs.ir.Names._
 import org.scalajs.ir.Trees._
 import org.scalajs.ir.Types._
+import replemitter._
+import org.scalajs.linker.interface.ModuleKind
+import org.scalajs.linker.interface.ESFeatures
 
 object Main {
 	// Create a counter for the number of classes we created
-	var counter = new java.util.concurrent.atomic.AtomicInteger(0)
+	val counter = new java.util.concurrent.atomic.AtomicInteger(0)
 
   def main(args: Array[String]): Unit = {
 		
-		val interpreter = new Interpreter(Semantics.Defaults)
+		// val interpreter = new Interpreter(Semantics.Defaults) 
+		val interpreter = new Emitter(
+			new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
+			  .withESFeatures(_.withAvoidClasses(false)))
 
 		scalajsCom.init((msg: String) => {
 
@@ -40,13 +46,14 @@ object Main {
 						IRContainerImpl.fromIRContainer(c).sjsirFiles))
 					libIRFiles.map(_.flatten)
 				}
-				files.foreach(irFiles => {// foreach because of Future
+				files.flatMap(irFiles => {// foreach because of Future
 					val result = interpreter.loadIRFiles(irFiles)
-					result.foreach(_ => {
-						println("Loaded") 
+					result.map(_ => {
 						scalajsCom.send("classpath files loaded") // An ack to the jvm side
 					})
-				})
+				}).recover {
+					case e: Exception => e.printStackTrace()
+				}
 			}
 
 			// case 2: msg starts with "irfiles:"
@@ -58,7 +65,6 @@ object Main {
 				irFiles.map(irFiles => {
 					val result = interpreter.loadIRFiles(irFiles)
 					result.foreach(_ => {
-						println("Loaded") 
 						scalajsCom.send("Several sjsir files loaded") // An ack to the jvm side
 					})
 				}).recover {
@@ -84,8 +90,7 @@ object Main {
 						IRBuilder.MainClassName.nameString + counter.getAndIncrement(), 
 					IRBuilder.MainMethodName.simpleName.nameString) :: Nil) 
 				}).map(_ => {
-					scalajsCom.send("Object loaded") // An ack to the jvm side
-					println(s"Loaded $objectName")
+					scalajsCom.send(s"Loaded $objectName") // An ack to the jvm side
 				}).recover {
 					case e: Exception => e.printStackTrace()
 				}
@@ -97,8 +102,8 @@ object Main {
 				val objectNameReceivedFromJVM = if (objectNameAndMethodName.split(":")(0).last != '$') 
 					objectNameAndMethodName.split(":")(0) + "$" else objectNameAndMethodName.split(":")(0)
 				val methodNameReceivedFromJVM = objectNameAndMethodName.split(":")(1)
-				println("objectName: " + objectNameReceivedFromJVM)
-				println("methodName: " + methodNameReceivedFromJVM)
+				// println("objectName: " + objectNameReceivedFromJVM)
+				// println("methodName: " + methodNameReceivedFromJVM)
 
 				var className = ClassName(objectNameReceivedFromJVM)
 				val simpleMethodName = SimpleMethodName(methodNameReceivedFromJVM)
