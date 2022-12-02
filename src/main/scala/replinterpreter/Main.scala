@@ -23,10 +23,10 @@ object Main {
 
   def main(args: Array[String]): Unit = {
 		
-		// val interpreter = new Interpreter(Semantics.Defaults) 
-		val interpreter = new Emitter(
-			new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
-			  .withESFeatures(_.withAvoidClasses(false)))
+		val interpreter = new Interpreter(Semantics.Defaults) 
+		// val interpreter = new Emitter(
+		// 	new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
+		// 	  .withESFeatures(_.withAvoidClasses(false)))
 
 		scalajsCom.init((msg: String) => {
 

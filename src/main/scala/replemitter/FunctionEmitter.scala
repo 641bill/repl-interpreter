@@ -2351,7 +2351,7 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
             genApplyStaticLike("f", className, method, transformedArgs)
           } else {
             val fun =
-              globalVar("c", className).prototype DOT transformMethodIdent(method)
+              js.Apply(globalVar("a", ObjectClass), Nil).prototype DOT transformMethodIdent(method)
             js.Apply(fun DOT "call", transformedArgs)
           }
 

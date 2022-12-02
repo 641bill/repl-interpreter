@@ -812,7 +812,7 @@ private[replemitter] object CoreJSLib {
 
           if (implementedInObject) {
             val staticObjectCall: Tree = {
-              val fun = globalVar("c", ObjectClass).prototype DOT genName(methodName)
+              val fun = Apply(globalVar("a", ObjectClass), Nil).prototype DOT genName(methodName)
               Return(Apply(fun DOT "call", instance :: args))
             }
 
@@ -1384,7 +1384,7 @@ private[replemitter] object CoreJSLib {
 
         if (useClassesForRegularClasses) {
           extractWithGlobals(globalClassDef("ac", componentTypeRef,
-              Some(globalVar("c", ObjectClass)), ctor :: members))
+              Some(Apply(globalVar("a", ObjectClass), Nil)), ctor :: members))
         } else {
           val clsDef = Block(
             extractWithGlobals(globalFunctionDef("ac", componentTypeRef,
@@ -1937,7 +1937,7 @@ private[replemitter] object CoreJSLib {
               })
             ))
           }),
-          globalVar("c", ObjectClass).prototype DOT "$classData" := typeDataVar
+          Apply(globalVar("a", ObjectClass), Nil).prototype DOT "$classData" := typeDataVar
         )
       }
 

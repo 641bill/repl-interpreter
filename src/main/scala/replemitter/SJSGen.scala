@@ -225,7 +225,7 @@ private[replemitter] final class SJSGen(
        */
       BooleanLiteral(false)
     } else {
-      expr instanceof globalVar("c", className)
+      expr instanceof Apply(globalVar("a", className), Nil)
     }
   }
 
@@ -254,7 +254,7 @@ private[replemitter] final class SJSGen(
     import TreeDSL._
 
     if (useBigIntForLongs) genCallHelper("isLong", expr)
-    else expr instanceof globalVar("c", LongImpl.RuntimeLongClass)
+    else expr instanceof Apply(globalVar("a", LongImpl.RuntimeLongClass), Nil)
   }
 
   private def genIsFloat(expr: Tree)(
@@ -405,7 +405,7 @@ private[replemitter] final class SJSGen(
   def genScalaClassNew(className: ClassName, ctor: MethodName, args: Tree*)(
       implicit globalKnowledge: GlobalKnowledge,
       pos: Position): Tree = {
-    val encodedClassVar = Apply(globalVar("c", className), Nil) // globalVar("c", className)
+    val encodedClassVar = Apply(Apply(globalVar("a", className), Nil), Nil) // globalVar("c", className)
     val argsList = args.toList
     // println("globalKnowLedge: " + globalKnowledge)
     // println("hasInlineableInit: " + globalKnowledge.hasInlineableInit(className))

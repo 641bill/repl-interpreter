@@ -84,6 +84,9 @@ final class Emitter(config: Emitter.Config) {
 
 	val coreJSLibFlag = new java.util.concurrent.atomic.AtomicBoolean(true)
 
+  // Don't generate classDefs with the same name twice
+  var classNameSet = Set.empty[String]
+
   def loadIRFiles(irFiles: Seq[IRFile]): Future[Unit] = {
     import ExecutionContext.Implicits.global
     import replinterpreter.IRBuilder.noPosition
@@ -93,10 +96,14 @@ final class Emitter(config: Emitter.Config) {
   }
 
   def loadClassDefs(classDefs: Seq[Trees.ClassDef]): Unit = {
-      // Update all classdefs before genclass
-    val _ = knowledgeGuardian.update(classDefs)
+    // Filter out classes that have already been loaded
+    val filteredClassDefs = classDefs.filterNot(c => classNameSet.contains(c.name.name.nameString))
+    // Add all classNames to the set
+    classNameSet ++= filteredClassDefs.map(_.name.name.nameString)
+    // Update all classdefs before genclass
+    val _ = knowledgeGuardian.update(filteredClassDefs)
 
-    val generatedClasses = classDefs.toList.map((genclass(_)))
+    val generatedClasses = filteredClassDefs.toList.map((genclass(_)))
     // Order it by number of ancestors
     println("Classes generated")
     val coreJSLib = 
@@ -278,6 +285,7 @@ final class Emitter(config: Emitter.Config) {
       if (emitAsStaticLike) {
         val methodCache =
           classCache.getStaticLikeMethodCache(namespace, methodDef.methodName)
+          
         if (methodDef.body.isDefined)
           main += classEmitter.genStaticLikeMethod(className, methodDef)(methodCache).value
       }
@@ -362,7 +370,9 @@ final class Emitter(config: Emitter.Config) {
 
       main += fullClass.value
     }
-    
+
+    main += classEmitter.genTypeData(classDef)(uncachedKnowledge, knowledgeGuardian).value
+
     if (className != ObjectClass)
       main += classEmitter.genInstanceTests(classDef)(classCache).value
 

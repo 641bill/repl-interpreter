@@ -100,12 +100,12 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
             js.If(!classValueVar, {
               js.Block(
                   classDefStats :::
-                  genClassInitialization(tree)
+                  genClassInitialization(tree) :::
+                  setTypeData :: Nil
               )
             }, {
               js.Skip()
             }),
-            js.Block(typeData, setTypeData),
             js.Return(classValueVar)
         )
         createAccessor <- globalFunctionDef("a", className, Nil, None, body)
@@ -1139,9 +1139,12 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
           }, js.Skip()))
       }
 
-      val body = js.Block(initBlock, 
+      def protoOf(t: js.Tree): js.Tree =
+        js.Apply(js.DotSelect(js.VarRef(js.Ident("Object")), js.Ident("getPrototypeOf")), List(t))
+      val body = js.Block(
+        initBlock, 
         consoleLog(moduleInstanceVar), 
-        consoleLog(js.StringLiteral("prototype = "), moduleInstanceVar.prototype),
+        consoleLog(js.StringLiteral("prototype = "), protoOf(moduleInstanceVar) DOT "safeHasOwnProperty__O"),
         js.Return(moduleInstanceVar)
       )
 
