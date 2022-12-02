@@ -1,7 +1,7 @@
 # repl-interpreter
 ## Useage
 
-Put it at the same folder level as dotty, and run
+Put it at the same folder level as `dotty`, and run
 
 `sbt fastLinkJS`
 
