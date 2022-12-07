@@ -37,9 +37,14 @@ import org.scalajs.linker.interface.unstable.IRFileImpl
 import org.scalajs.ir.Types
 import replinterpreter.IRBuilder
 
+@scala.scalajs.js.native @scala.scalajs.js.annotation.JSImport("vm", "Script")
+class Script(code: String, options: scala.scalajs.js.Any) extends scala.scalajs.js.Object {
+  def runInThisContext(): Unit = scala.scalajs.js.native
+}
+
 /** Emits a desugared JS tree to a builder */
 final class Emitter(config: Emitter.Config) {
-  
+
   implicit val pos = Position.NoPosition
   import Emitter._
   import config._
@@ -91,7 +96,7 @@ final class Emitter(config: Emitter.Config) {
     import ExecutionContext.Implicits.global
     import replinterpreter.IRBuilder.noPosition
     // println("Loading IR files")
-    Future.traverse(irFiles)(i => IRFileImpl.fromIRFile(i).tree).
+    Future.traverse(irFiles ++ injectedIRFiles)(i => IRFileImpl.fromIRFile(i).tree).
       map(loadClassDefs(_))
   }
 
@@ -106,7 +111,7 @@ final class Emitter(config: Emitter.Config) {
     val generatedClasses = filteredClassDefs.toList.map((genclass(_)))
     // Order it by number of ancestors
     println("Classes generated")
-    val coreJSLib = 
+    val coreJSLib =
       if (coreJSLibFlag.get() == true) {
         coreJSLibFlag.set(false)
         Some(state.coreJSLibCache.build().value) // Only emit once the coreJSLib
@@ -117,11 +122,10 @@ final class Emitter(config: Emitter.Config) {
     def classIter = generatedClasses.iterator
 
     println(classIter.count(_.className == ObjectClass))
-    def objectClass =
-      classIter.filter(_.className == ObjectClass)
+    val objectClass = classIter.find(_.className == ObjectClass)
 
     def consoleLog(msg: String) =
-      List(js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")), 
+      List(js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")),
       js.StringLiteral("log")), List(js.StringLiteral(msg))))
 
     /* Emit everything but module imports in the appropriate order.
@@ -131,47 +135,59 @@ final class Emitter(config: Emitter.Config) {
       * requires consistency between the Analyzer and the Emitter. As such,
       * it is crucial that we verify it.
       */
-    
-    val defTrees = js.Block(
-      /* The definitions of the CoreJSLib that come before the definition
-        * of `j.l.Object`. They depend on nothing else.
-        */
-      consoleLog("Emitting") ++
-        
-      coreJSLib.map(_.preObjectDefinitions).iterator ++
 
-      consoleLog("Pre Object Definitions") ++
+    val defTreesBuilder = List.newBuilder[js.Tree]
 
-      /* The definition of `j.l.Object` class. Unlike other classes, this
-        * does not include its instance tests nor metadata.
-        */
-      objectClass.flatMap(_.main) ++
+    if (objectClass.isDefined) {
+      defTreesBuilder ++= (
+        /* The definitions of the CoreJSLib that come before the definition
+          * of `j.l.Object`. They depend on nothing else.
+          */
+        consoleLog("Emitting") ++
 
-      consoleLog("Object Class") ++
+        coreJSLib.map(_.preObjectDefinitions).iterator ++
 
-      /* The definitions of the CoreJSLib that come after the definition
-        * of `j.l.Object` because they depend on it. This includes the
-        * definitions of the array classes, as well as type data for
-        * primitive types and for `j.l.Object`.
-        */
-      coreJSLib.map(_.postObjectDefinitions).iterator ++
+        consoleLog("Pre Object Definitions") ++
 
-      consoleLog("Post Object Definitions") ++
+        /* The definition of `j.l.Object` class. Unlike other classes, this
+          * does not include its instance tests nor metadata.
+          */
+        objectClass.get.main ++
 
+        consoleLog("Object Class") ++
+
+        /* The definitions of the CoreJSLib that come after the definition
+          * of `j.l.Object` because they depend on it. This includes the
+          * definitions of the array classes, as well as type data for
+          * primitive types and for `j.l.Object`.
+          */
+        coreJSLib.map(_.postObjectDefinitions).iterator ++
+
+        consoleLog("Post Object Definitions")
+      )
+    }
+
+    defTreesBuilder ++= (
       /* All class definitions, except `j.l.Object`, which depend on
         * nothing but their superclasses.
         */
       classIter.filterNot(_.className == ObjectClass).flatMap(_.main) ++
 
-      consoleLog("Classes") ++
+      consoleLog("Classes")
+    )
 
-      /* The initialization of the CoreJSLib, which depends on the
-        * definition of classes (n.b. the RuntimeLong class).
-        */
-      coreJSLib.map(_.initialization).iterator ++
+    if (objectClass.isDefined) {
+      defTreesBuilder ++= (
+        /* The initialization of the CoreJSLib, which depends on the
+          * definition of classes (n.b. the RuntimeLong class).
+          */
+        coreJSLib.map(_.initialization).iterator ++
 
-      consoleLog("Core JS Lib Initialization") ++
+        consoleLog("Core JS Lib Initialization")
+      )
+    }
 
+    defTreesBuilder ++= (
       /* All static field definitions, which depend on nothing, except
         * those of type Long which need $L0.
         */
@@ -186,20 +202,27 @@ final class Emitter(config: Emitter.Config) {
       classIter.flatMap(_.staticInitialization) ++
 
       consoleLog("Static Initialization")
+    )
 
-    )(Position.NoPosition)
+    val defTrees = defTreesBuilder.result()
+    val stringWriter = new java.io.StringWriter()
+    new javascript.Printers.JSTreePrinter(stringWriter).printTopLevelTree(js.Block(defTrees))
+    val generatedCode = stringWriter.toString()
+
     println("defTrees generated")
     // Write to file
-    scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-trees-lazy-classes.js", defTrees.show)
+    scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-trees-lazy-classes.js", generatedCode)
 
-    scalajs.js.eval(defTrees.show)
+    val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code.js"))
+    script.runInThisContext()
+    //scalajs.js.eval(generatedCode)
     println("defTrees evaluated")
     ()
   }
 
   def runModuleInitializers(moduleInitializers: Seq[ModuleInitializer]): Future[Unit] = {
     import ExecutionContext.Implicits.global
-    val initializerTrees = moduleInitializers.map(moduleInitializer => 
+    val initializerTrees = moduleInitializers.map(moduleInitializer =>
       classEmitter.genModuleInitializer(moduleInitializer.initializer)(uncachedKnowledge)).map(_.value)
     val defTrees = js.Block(
       initializerTrees
@@ -262,9 +285,9 @@ final class Emitter(config: Emitter.Config) {
 
     val main = List.newBuilder[js.Tree]
 
-    val (linkedInlineableInit, linkedMethods) = 
+    val (linkedInlineableInit, linkedMethods) =
       classEmitter.extractInlineableInit(classDef)
-    
+
     // Symbols for private JS fields
     if (kind.isJSClass) {
       val fieldDefs = classEmitter.genCreatePrivateJSFieldDefsOfJSClass(classDef)(classCache)
@@ -285,7 +308,7 @@ final class Emitter(config: Emitter.Config) {
       if (emitAsStaticLike) {
         val methodCache =
           classCache.getStaticLikeMethodCache(namespace, methodDef.methodName)
-          
+
         if (methodDef.body.isDefined)
           main += classEmitter.genStaticLikeMethod(className, methodDef)(methodCache).value
       }
@@ -305,7 +328,7 @@ final class Emitter(config: Emitter.Config) {
       val ctorCache = classCache.getConstructorCache()
       val initToInline = linkedInlineableInit.map(_.value)
       val ctorWithGlobals = classEmitter.genConstructor(classDef, useESClass, initToInline)(ctorCache)
-      
+
       /* Bridges from Throwable to methods of Object, which are necessary
        * because Throwable is rewired to extend JavaScript's Error instead of
        * j.l.Object.

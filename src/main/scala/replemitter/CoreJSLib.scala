@@ -133,12 +133,12 @@ private[replemitter] object CoreJSLib {
       defineModuleHelpers(),
       defineIntrinsics(),
       defineIsPrimitiveFunctions(),
-      defineBoxFunctions()
+      defineBoxFunctions(),
+      defineTypeDataClass()
     )
 
     private def buildPostObjectDefinitions(): Tree = Block(
       defineSpecializedArrayClasses(),
-      defineTypeDataClass(),
       defineSpecializedIsArrayOfFunctions(),
       defineSpecializedAsArrayOfFunctions(),
       defineSpecializedTypeDatas()
