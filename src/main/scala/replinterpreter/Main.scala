@@ -22,11 +22,13 @@ object Main {
 	val counter = new java.util.concurrent.atomic.AtomicInteger(0)
 
   def main(args: Array[String]): Unit = {
-		
-		val interpreter = new Interpreter(Semantics.Defaults) 
-		// val interpreter = new Emitter(
-		// 	new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
-		// 	  .withESFeatures(_.withAvoidClasses(false)))
+
+		//val interpreter = new Interpreter(Semantics.Defaults)
+		val interpreter = new Emitter(
+			new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
+			  .withESFeatures(_.withAvoidClasses(false)))
+
+    js.Dynamic.global.Error.stackTraceLimit = 100
 
 		scalajsCom.init((msg: String) => {
 
@@ -42,7 +44,7 @@ object Main {
 				val jars = NodeIRContainer.fromClasspath(path.split(':').toList)
 
 				val files = jars.flatMap { case (irContainers, _) =>
-					val libIRFiles = Future.sequence(irContainers.map(c => 
+					val libIRFiles = Future.sequence(irContainers.map(c =>
 						IRContainerImpl.fromIRContainer(c).sjsirFiles))
 					libIRFiles.map(_.flatten)
 				}
@@ -62,9 +64,9 @@ object Main {
 				val irFiles: Future[List[IRFile]] = Future.sequence(
 					paths.split(",").map(NodeIRFile(_)).toList)
 
-				irFiles.map(irFiles => {
+				irFiles.flatMap(irFiles => {
 					val result = interpreter.loadIRFiles(irFiles)
-					result.foreach(_ => {
+					result.map(_ => {
 						scalajsCom.send("Several sjsir files loaded") // An ack to the jvm side
 					})
 				}).recover {
@@ -87,8 +89,8 @@ object Main {
 
 				result.flatMap(_ => {
 					interpreter.runModuleInitializers(ModuleInitializer.mainMethodWithArgs(
-						IRBuilder.MainClassName.nameString + counter.getAndIncrement(), 
-					IRBuilder.MainMethodName.simpleName.nameString) :: Nil) 
+						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
+					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
 				}).map(_ => {
 					scalajsCom.send(s"Loaded $objectName") // An ack to the jvm side
 				}).recover {
@@ -99,7 +101,7 @@ object Main {
 			// case 4: objectName and methodName
 			else if (msg.startsWith("objectNameAndMethodName:")) {
 				val objectNameAndMethodName = msg.substring("objectNameAndMethodName:".length)
-				val objectNameReceivedFromJVM = if (objectNameAndMethodName.split(":")(0).last != '$') 
+				val objectNameReceivedFromJVM = if (objectNameAndMethodName.split(":")(0).last != '$')
 					objectNameAndMethodName.split(":")(0) + "$" else objectNameAndMethodName.split(":")(0)
 				val methodNameReceivedFromJVM = objectNameAndMethodName.split(":")(1)
 				// println("objectName: " + objectNameReceivedFromJVM)
@@ -117,17 +119,17 @@ object Main {
 
 				result.flatMap(_ => {
 					interpreter.runModuleInitializers(ModuleInitializer.mainMethodWithArgs(
-						IRBuilder.MainClassName.nameString + counter.getAndIncrement(), 
-					IRBuilder.MainMethodName.simpleName.nameString) :: Nil) 
+						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
+					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
 				}).map(_ => {
 					println(s"Ran $objectNameReceivedFromJVM.$methodNameReceivedFromJVM")
 				}).recover {
 					case e: Exception => e.printStackTrace()
 				}
-			
+
 			}
 
-			
+
 			// case 5: msg is "exit"
 			else if (msg == "exit") {
 				println("Exiting REPL Interpreter...")

@@ -65,7 +65,7 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
     if (!tree.kind.isJSClass) {
       // Also wrap the entire class def in an accessor function, so that they are only loaded when accessed
       assert(tree.jsSuperClass.isEmpty, className)
-      
+
       val classValueIdent = fileLevelVarIdent("b", genName(className))
       val classValueVar = js.VarRef(classValueIdent)
       val createClassValueVar = genEmptyMutableLet(classValueIdent)
@@ -79,12 +79,14 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
           }
 
           WithGlobals.option(parentVarWithGlobals).flatMap { parentVar =>
-            globalClassDef("b", className, parentVar, allES6Defs)
+            globalClassDef("b", className, parentVar, allES6Defs).map { cd =>
+              js.Assign(globalVar("b", className), cd)
+            }
           }
         } else {
           allES5Defs(classValueVar)
         }
-      
+
       val classDefStatsWithGlobals = for {
         entireClassDef <- entireClassDefWithGlobals
         createStaticFields <- genCreateStaticFieldsOfJSClass(tree)
@@ -127,7 +129,7 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
       val classValueVar = js.VarRef(classValueIdent)
       val createClassValueVar = genEmptyMutableLet(classValueIdent)
 
-      val entireClassDefWithGlobals = 
+      val entireClassDefWithGlobals =
         if (useESClass) {
           genJSSuperCtor(tree).map { jsSuperClass =>
             classValueVar := js.ClassDef(Some(classValueIdent), Some(jsSuperClass), allES6Defs)
@@ -417,8 +419,8 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
     implicit val pos = tree.pos
 
     require(tree.kind.isJSClass)
-    
-    val jsConstructorDef: Option[JSConstructorDef] = 
+
+    val jsConstructorDef: Option[JSConstructorDef] =
       try {
         tree.memberDefs.collect{
           case m: JSConstructorDef => Some(m)
@@ -619,7 +621,7 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
     implicit val pos = method.pos
 
     val namespace = method.flags.namespace
-    
+
     // println("namespace.isStatic: " + namespace.isStatic)
 
     val methodFun0WithGlobals = {
@@ -1080,15 +1082,15 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
       implicit globalKnowledge: GlobalKnowledge): WithGlobals[js.Tree] = {
     import TreeDSL._
 
-    implicit val pos = tree.pos  
+    implicit val pos = tree.pos
 
     def consoleLogSingleTree(tree: js.Tree) = {
-      List(js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")), 
+      List(js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")),
       js.StringLiteral("log")), List(tree)))
     }
 
     def consoleLog(tree: js.Tree*) = {
-      js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")), 
+      js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")),
       js.StringLiteral("log")), tree.toList)
     }
 
@@ -1142,8 +1144,8 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
       def protoOf(t: js.Tree): js.Tree =
         js.Apply(js.DotSelect(js.VarRef(js.Ident("Object")), js.Ident("getPrototypeOf")), List(t))
       val body = js.Block(
-        initBlock, 
-        consoleLog(moduleInstanceVar), 
+        initBlock,
+        consoleLog(moduleInstanceVar),
         consoleLog(js.StringLiteral("prototype = "), protoOf(moduleInstanceVar) DOT "safeHasOwnProperty__O"),
         js.Return(moduleInstanceVar)
       )

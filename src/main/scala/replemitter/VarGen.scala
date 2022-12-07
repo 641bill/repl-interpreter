@@ -53,7 +53,7 @@ private[replemitter] final class VarGen(jsGen: JSGen, nameGen: NameGen,
       origName: OriginalName = NoOriginalName)(
       implicit pos: Position, globalKnowledge: GlobalKnowledge): WithGlobals[Tree] = {
     val ident = globalVarIdent(field, scope, origName)
-    maybeExport(ident, Assign(globalVar("b", scope), ClassDef(Some(ident), parentClass, members)), mutable = false)
+    maybeExport(ident, ClassDef(Some(ident), parentClass, members), mutable = false)
   }
 
   def globalFunctionDef[T: Scope](field: String, scope: T,
@@ -143,7 +143,7 @@ private[replemitter] final class VarGen(jsGen: JSGen, nameGen: NameGen,
           genArrowFunction(List(ParamDef(module)), None, Return(expr))))
     }
 
-    
+
     unitPromise.map { promise =>
       genThen(promise, body(VarRef(ident)))
     }
