@@ -37,6 +37,11 @@ import org.scalajs.linker.interface.unstable.IRFileImpl
 import org.scalajs.ir.Types
 import replinterpreter.IRBuilder
 
+@scala.scalajs.js.native @scala.scalajs.js.annotation.JSImport("vm", "Script")
+class Script(code: String, options: scala.scalajs.js.Any) extends scala.scalajs.js.Object {
+  def runInThisContext(): Unit = scala.scalajs.js.native
+}
+
 /** Emits a desugared JS tree to a builder */
 final class Emitter(config: Emitter.Config) {
 
@@ -208,7 +213,9 @@ final class Emitter(config: Emitter.Config) {
     // Write to file
     scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-trees-lazy-classes.js", generatedCode)
 
-    scalajs.js.eval(generatedCode)
+    val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code.js"))
+    script.runInThisContext()
+    //scalajs.js.eval(generatedCode)
     println("defTrees evaluated")
     ()
   }
