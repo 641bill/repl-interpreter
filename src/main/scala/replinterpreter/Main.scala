@@ -20,10 +20,9 @@ import org.scalajs.linker.interface.ESFeatures
 object Main {
 	// Create a counter for the number of classes we created
 	val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-
   def main(args: Array[String]): Unit = {
 
-		//val interpreter = new Interpreter(Semantics.Defaults)
+		// val interpreter = new Interpreter(Semantics.Defaults)
 		val interpreter = new Emitter(
 			new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
 			  .withESFeatures(_.withAvoidClasses(false)))
