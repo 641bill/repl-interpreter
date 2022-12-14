@@ -51,23 +51,9 @@ object IRBuilder {
     Hashers.hashClassDef(notHashed)
   }
 
-  // final val MainTestClassName = ClassName("Test")
 	final val MainClassName = ClassName("Main")
 
-  // val MainTestModuleInitializers = mainModuleInitializers("Test")
 	val MainModuleInitializers = mainModuleInitializers("Main")
-
-  // def mainTestClassDef(mainBody: Tree): ClassDef = {
-  //   classDef(
-  //       MainTestClassName,
-  //       kind = ClassKind.ModuleClass,
-  //       superClass = Some(ObjectClass),
-  //       memberDefs = List(
-  //           trivialCtor(MainTestClassName),
-  //           mainMethodDef(mainBody)
-  //       )
-  //   )
-  // }
 
 	def mainClassDef(mainBody: Tree, index: Int): ClassDef = {
 		classDef(

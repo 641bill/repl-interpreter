@@ -599,13 +599,7 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
   def genMemberMethod(className: ClassName, method: MethodDef)(
       implicit globalKnowledge: GlobalKnowledge): WithGlobals[js.MethodDef] = {
     assert(method.flags.namespace == MemberNamespace.Public)
-    // println("genMemberMethod: " + method.methodName)
-
-    // println("method.pos: " + method.pos)
     implicit val pos = method.pos
-    // println("method.args: " + method.args)
-    // println("method.body: " + method.body)
-    // println("method.resultType: " + method.resultType)
     for {
       methodFun <- desugarToFunction(className, method.args, method.body.get, method.resultType)
     } yield {
@@ -622,8 +616,6 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
 
     val namespace = method.flags.namespace
 
-    // println("namespace.isStatic: " + namespace.isStatic)
-
     val methodFun0WithGlobals = {
       if (namespace.isStatic) {
         desugarToFunction(className, method.args, methodBody, method.resultType)
@@ -633,7 +625,6 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
       }
     }
 
-    // println("methodFun0WithGlobals generated")
 
     methodFun0WithGlobals.flatMap { methodFun0 =>
       val methodFun = if (namespace == MemberNamespace.Constructor) {
@@ -658,8 +649,6 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
       }
 
       val methodName = method.name.name
-
-      // println("Calling globalFunctionDef")
 
       globalFunctionDef(field, (className, methodName), methodFun.args,
           methodFun.restParam, methodFun.body, method.originalName.orElse(methodName))
@@ -767,7 +756,6 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
 
     val classVarRef =
       if (tree.kind.isJSClass) fileLevelVar("b", genName(tree.className))
-      // else globalVar("c", tree.className)
       else fileLevelVar("b", genName(tree.className))
 
     if (namespace.isStatic) classVarRef
@@ -1145,8 +1133,6 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
         js.Apply(js.DotSelect(js.VarRef(js.Ident("Object")), js.Ident("getPrototypeOf")), List(t))
       val body = js.Block(
         initBlock,
-        consoleLog(moduleInstanceVar),
-        consoleLog(js.StringLiteral("prototype = "), protoOf(moduleInstanceVar) DOT "safeHasOwnProperty__O"),
         js.Return(moduleInstanceVar)
       )
 
@@ -1180,17 +1166,13 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
 
       topLevelExport match {
         case TopLevelJSClassExportDef(_, exportName) =>
-          // println("TopLevelJSClassExportDef")
           genConstValueExportDef(
               exportName, genNonNativeJSClassConstructor(ClassName(topLevelExport.topLevelExportName)))
         case TopLevelModuleExportDef(_, exportName) =>
-          // println("TopLevelModuleExportDef")
           genConstValueExportDef(exportName, genLoadModule(ClassName(topLevelExport.topLevelExportName)))
         case e: TopLevelMethodExportDef =>
-          // println("TopLevelMethodExportDef")
           genTopLevelMethodExportDef(e)
         case e: TopLevelFieldExportDef =>
-          // println("genTopLevelFieldExportDef")
           genTopLevelFieldExportDef(ClassName(topLevelExport.topLevelExportName), e)
       }
     }
