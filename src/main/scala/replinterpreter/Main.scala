@@ -22,7 +22,6 @@ object Main {
 	val counter = new java.util.concurrent.atomic.AtomicInteger(0)
   def main(args: Array[String]): Unit = {
 
-		// val interpreter = new Interpreter(Semantics.Defaults)
 		val interpreter = new Emitter(
 			new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
 			  .withESFeatures(_.withAvoidClasses(false)))
@@ -33,7 +32,6 @@ object Main {
 
 			import IRBuilder.noPosition
 
-			println("Received: " + msg)
 			// in the callback, call the interpreter
 			import ExecutionContext.Implicits.global
 
@@ -77,7 +75,6 @@ object Main {
 			// synthesize a class with a main method that loads the module
 			else if (msg.startsWith("objectName:")) {
 				val objectName = msg.substring("objectName:".length)
-				println("objectName: " + objectName)
 
 				var className = ClassName(objectName)
 
@@ -99,16 +96,28 @@ object Main {
 
 			// case 4: objectName and methodName
 			else if (msg.startsWith("objectNameAndMethodName:")) {
-				val objectNameAndMethodName = msg.substring("objectNameAndMethodName:".length)
-				val objectNameReceivedFromJVM = if (objectNameAndMethodName.split(":")(0).last != '$')
-					objectNameAndMethodName.split(":")(0) + "$" else objectNameAndMethodName.split(":")(0)
-				val methodNameReceivedFromJVM = objectNameAndMethodName.split(":")(1)
-				// println("objectName: " + objectNameReceivedFromJVM)
-				// println("methodName: " + methodNameReceivedFromJVM)
+				val objectNameAndMethodName = msg.substring("objectNameAndMethodName:".length).split(":")
+				val objectNameReceivedFromJVM = if (objectNameAndMethodName(0).last != '$')
+					objectNameAndMethodName(0) + "$" 
+					else objectNameAndMethodName(0)
+				val methodNameReceivedFromJVM = objectNameAndMethodName(1)
+				val irTypeStr = objectNameAndMethodName(2)
+				val irType = irTypeStr.charAt(0) match {
+					case 'V' => VoidRef
+					case 'Z' => BooleanRef
+					case 'C' => CharRef
+					case 'B' => ByteRef
+					case 'S' => ShortRef
+					case 'I' => IntRef
+					case 'J' => LongRef
+					case 'F' => FloatRef
+					case 'D' => DoubleRef
+					case 'L' => ClassRef(ClassName(irTypeStr.substring(1)))
+				}
 
 				var className = ClassName(objectNameReceivedFromJVM)
 				val simpleMethodName = SimpleMethodName(methodNameReceivedFromJVM)
-				val methodName = MethodName.reflectiveProxy(simpleMethodName, Nil)
+				val methodName = MethodName(simpleMethodName, Nil, irType)
 				val apply = Apply(ApplyFlags.empty, LoadModule(className), MethodIdent(methodName), Nil)(NoType)
 				val resultString = BinaryOp(BinaryOp.String_+, StringLiteral(""), apply)
 				val scalajsComSend = JSMethodApply(JSGlobalRef("scalajsCom"), StringLiteral("send"), List(resultString))
@@ -121,23 +130,9 @@ object Main {
 						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
 					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
 				}).map(_ => {
-					println(s"Ran $objectNameReceivedFromJVM.$methodNameReceivedFromJVM")
 				}).recover {
 					case e: Exception => e.printStackTrace()
 				}
-
-			}
-
-
-			// case 5: msg is "exit"
-			else if (msg == "exit") {
-				println("Exiting REPL Interpreter...")
-				scalajsCom.send("exit")
-			}
-
-			// case 6: msg is something else
-			else {
-				println("Unknown command: " + msg)
 			}
 		})
 	}

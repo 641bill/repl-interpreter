@@ -29,7 +29,6 @@ import org.scalajs.linker.backend.javascript.{Trees => js, _}
 import org.scalajs.linker.backend.emitter.PrivateLibHolder
 import org.scalajs.linker.backend.javascript
 import replinterpreter.IRBuilder
-import scala.scalajs.js.annotation._
 
 import EmitterNames._
 import GlobalRefUtils._
@@ -37,22 +36,13 @@ import org.scalajs.ir.Trees
 import scala.concurrent._
 import org.scalajs.linker.interface.unstable.IRFileImpl
 import org.scalajs.ir.Types
+import scala.scalajs.js.annotation._
+import replinterpreter.scalajsCom
 
-@JSImport("vm", JSImport.Namespace)
-@scala.scalajs.js.native
-object Vm extends scala.scalajs.js.Object {
-  def createContext(sandbox: scala.scalajs.js.Any): Context = scala.scalajs.js.native
-  def runInContext(code: String, context: Context, options: scala.scalajs.js.Any): scala.scalajs.js.Any = scala.scalajs.js.native
-}
-
-@JSImport("vm", "Context")
-@scala.scalajs.js.native
-class Context extends scala.scalajs.js.Object
 @JSImport("vm", "Script")
 @scala.scalajs.js.native
 class Script(code: String, options: scala.scalajs.js.Any) extends scala.scalajs.js.Object {
   def runInThisContext(): Unit = scala.scalajs.js.native
-  def runInContext(context: Context, options: scala.scalajs.js.Any): Unit = scala.scalajs.js.native
 }
 
 /** Emits a desugared JS tree to a builder */
@@ -105,13 +95,9 @@ final class Emitter(config: Emitter.Config) {
   // Don't generate classDefs with the same name twice
   var classNameSet = Set.empty[String]
 
-  val context = Vm.createContext({
-  })
-
   def loadIRFiles(irFiles: Seq[IRFile]): Future[Unit] = {
     import ExecutionContext.Implicits.global
     import replinterpreter.IRBuilder.noPosition
-    println("Loading IR files")
     Future.traverse(irFiles ++ injectedIRFiles)(i => IRFileImpl.fromIRFile(i).tree).
       map(loadClassDefs(_))
   }
@@ -131,7 +117,6 @@ final class Emitter(config: Emitter.Config) {
 
     val generatedClasses = filteredClassDefs.toList.map((genclass(_)))
     // Order it by number of ancestors
-    println("Classes generated")
     val coreJSLib =
       if (coreJSLibFlag.get() == true) {
         coreJSLibFlag.set(false)
@@ -142,12 +127,7 @@ final class Emitter(config: Emitter.Config) {
 
     def classIter = generatedClasses.iterator
 
-    // println(classIter.count(_.className == ObjectClass))
     val objectClass = classIter.find(_.className == ObjectClass)
-
-    def consoleLog(msg: String) =
-      List(js.Apply(js.BracketSelect(js.VarRef(js.Ident("console")),
-      js.StringLiteral("log")), List(js.StringLiteral(msg))))
 
     /* Emit everything but module imports in the appropriate order.
       *
@@ -164,27 +144,20 @@ final class Emitter(config: Emitter.Config) {
         /* The definitions of the CoreJSLib that come before the definition
           * of `j.l.Object`. They depend on nothing else.
           */
-        consoleLog("Emitting") ++
 
         coreJSLib.map(_.preObjectDefinitions).iterator ++
-
-        consoleLog("Pre Object Definitions") ++
 
         /* The definition of `j.l.Object` class. Unlike other classes, this
           * does not include its instance tests nor metadata.
           */
         objectClass.get.main ++
 
-        consoleLog("Object Class") ++
-
         /* The definitions of the CoreJSLib that come after the definition
           * of `j.l.Object` because they depend on it. This includes the
           * definitions of the array classes, as well as type data for
           * primitive types and for `j.l.Object`.
           */
-        coreJSLib.map(_.postObjectDefinitions).iterator ++
-
-        consoleLog("Post Object Definitions")
+        coreJSLib.map(_.postObjectDefinitions).iterator
       )
     }
 
@@ -192,9 +165,7 @@ final class Emitter(config: Emitter.Config) {
       /* All class definitions, except `j.l.Object`, which depend on
         * nothing but their superclasses.
         */
-      classIter.filterNot(_.className == ObjectClass).flatMap(_.main) ++
-
-      consoleLog("Classes")
+      classIter.filterNot(_.className == ObjectClass).flatMap(_.main)
     )
 
     if (objectClass.isDefined) {
@@ -202,9 +173,7 @@ final class Emitter(config: Emitter.Config) {
         /* The initialization of the CoreJSLib, which depends on the
           * definition of classes (n.b. the RuntimeLong class).
           */
-        coreJSLib.map(_.initialization).iterator ++
-
-        consoleLog("Core JS Lib Initialization")
+        coreJSLib.map(_.initialization).iterator
       )
     }
 
@@ -214,15 +183,11 @@ final class Emitter(config: Emitter.Config) {
         */
       classIter.flatMap(_.staticFields) ++
 
-      consoleLog("Static Fields") ++
-
       /* All static initializers, which in the worst case can observe some
         * "zero" state of other static field definitions, but must not
         * observe a *non-initialized* (undefined) state.
         */
-      classIter.flatMap(_.staticInitialization) ++
-
-      consoleLog("Static Initialization")
+      classIter.flatMap(_.staticInitialization)
     )
 
     val defTrees = defTreesBuilder.result()
@@ -230,15 +195,11 @@ final class Emitter(config: Emitter.Config) {
     new javascript.Printers.JSTreePrinter(stringWriter).printTopLevelTree(js.Block(defTrees))
     val generatedCode = stringWriter.toString()
 
-    println("defTrees generated")
-
     // Write to file
-    scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code" + counter.getAndAdd(1) + ".js", generatedCode)
+    scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code" + counter.addAndGet(1) + ".js", generatedCode)
 
-    val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code.js"))
-    script.runInContext(context, scala.scalajs.js.Dynamic.literal())
-    //scalajs.js.eval(generatedCode)
-    println("defTrees evaluated")
+    val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code" + counter.get() + ".js"))
+    script.runInThisContext()
     ()
   }
 
@@ -254,8 +215,7 @@ final class Emitter(config: Emitter.Config) {
     scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code-run" + moduleInitializerCounter.getAndAdd(1) + ".js", defTrees.show)
     
     val script = new Script(defTrees.show, scala.scalajs.js.Dynamic.literal(filename = "generated-code-run.js"))
-    script.runInContext(context, scala.scalajs.js.Dynamic.literal())
-    // scalajs.js.eval(defTrees.show)
+    script.runInThisContext()
     Future[Unit](())
   }
 

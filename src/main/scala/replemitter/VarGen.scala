@@ -44,7 +44,6 @@ private[replemitter] final class VarGen(jsGen: JSGen, nameGen: NameGen,
       implicit globalKnowledge: GlobalKnowledge,
       pos: Position): Tree = {
     val ident = globalVarIdent(field, scope, origName)
-    // println("globalVar: " + ident)
     VarRef(ident)
   }
 
@@ -117,7 +116,6 @@ private[replemitter] final class VarGen(jsGen: JSGen, nameGen: NameGen,
       implicit globalKnowledge: GlobalKnowledge,
       pos: Position): Tree = {
     // assert(config.moduleKind == ModuleKind.ESModule)
-    // println("globalVarExport")
 
     val ident = globalVarIdent(field, scope, origName)
     Export((ident -> exportName) :: Nil)
@@ -127,7 +125,6 @@ private[replemitter] final class VarGen(jsGen: JSGen, nameGen: NameGen,
   def withDynamicGlobalVar[T: Scope](field: String, scope: T)(body: Tree => Tree)(
       implicit globalKnowledge: GlobalKnowledge,
       pos: Position): WithGlobals[Tree] = {
-    // println("withDynamicGlobalVar")
     val ident = globalVarIdent(field, scope)
 
     val module = fileLevelVarIdent("$module")
@@ -233,37 +230,7 @@ private[replemitter] final class VarGen(jsGen: JSGen, nameGen: NameGen,
 
   private def maybeExport(ident: Ident, tree: Tree, mutable: Boolean)(
       implicit pos: Position): WithGlobals[Tree] = {
-    // if (moduleContext.public) {
       WithGlobals(tree)
-    // } else {
-    //   val exportStat = config.moduleKind match {
-    //     case ModuleKind.NoModule =>
-    //       throw new AssertionError("non-public module in NoModule mode")
-
-    //     case ModuleKind.ESModule =>
-    //       WithGlobals(Export(genExportIdent(ident) :: Nil))
-
-    //     case ModuleKind.CommonJSModule =>
-    //       globalRef("exports").flatMap { exportsVarRef =>
-    //         val name = StringLiteral(ident.name)
-
-    //         if (mutable) {
-    //           val x = Ident("x")
-    //           genDefineProperty(exportsVarRef, name, List(
-    //               "get" -> Function(arrow = false, Nil, None, Return(VarRef(ident))),
-    //               "set" -> Function(arrow = false, List(ParamDef(x)), None, {
-    //                   Assign(VarRef(ident), VarRef(x))
-    //               }),
-    //               "configurable" -> BooleanLiteral(true)
-    //           ))
-    //         } else {
-    //           WithGlobals(Assign(genBracketSelect(exportsVarRef, name), VarRef(ident)))
-    //         }
-    //       }
-    //   }
-
-    //   exportStat.map(Block(tree, _))
-    // }
   }
 
   private def avoidClashWithGlobalRef(codegenVarName: String): String = {

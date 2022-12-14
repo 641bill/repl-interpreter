@@ -260,7 +260,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
       body: Tree, resultType: Type)(
       implicit globalKnowledge: GlobalKnowledge,
       pos: Position): WithGlobals[js.Function] = {
-    // println("desugarToFunction")
     desugarToFunction(enclosingClassName, params, restParam = None, body,
         resultType)
   }
@@ -410,7 +409,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
         body: => A): WithGlobals[A] = {
       val result = body
       if (!isOptimisticNamingRun || !globalVarNames.exists(localVarNames)) {
-        // println("performOptimisticThenPessimisticRuns: then")
         /* At this point, filter out the global refs that do not need to be
          * tracked across functions and classes.
          *
@@ -435,7 +433,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
          * the optimistic run about the set of global variable names that are
          * used.
          */
-        // println("performOptimisticThenPessimisticRuns: else")
         localVarNames.clear()
         isOptimisticNamingRun = false
         performOptimisticThenPessimisticRuns(body)
@@ -483,7 +480,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
     def desugarToFunctionWithExplicitThis(
         params: List[ParamDef], body: Tree, isStat: Boolean, env0: Env)(
         implicit pos: Position): WithGlobals[js.Function] = {
-      // println("desugarToFunctionWithExplicitThis")
 
       performOptimisticThenPessimisticRuns {
         val thisIdent = fileLevelVarIdent("thiz", thisOriginalName)
@@ -510,14 +506,10 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
         params: List[ParamDef], restParam: Option[ParamDef], body: Tree,
         isStat: Boolean, env0: Env)(
         implicit pos: Position): js.Function = {
-      // println("desugarToFunctionInternal")
 
       val env = env0.withParams(params ++ restParam)
-      
-      // println("env = " + env)
 
       val newBody = if (isStat) {
-        // println("isStat")
         body match {
           // Necessary to optimize away top-level _return: {} blocks
           case Labeled(label, _, body) =>
@@ -527,7 +519,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
             transformStat(body, Set.empty)(env)
         }
       } else {
-        // println("isNotStat")
         pushLhsInto(Lhs.ReturnFromFunction, body, Set.empty)(env)
       }
 
@@ -594,7 +585,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
     /** Desugar a statement of the IR into ES5 JS */
     def transformStat(tree: Tree, tailPosLabels: Set[LabelName])(
         implicit env: Env): js.Tree = {
-      // println("transformStat")
       import TreeDSL._
 
       implicit val pos = tree.pos
@@ -1207,7 +1197,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
     def unnest(arg0: Tree, args: List[Tree])(
         makeStat: (Tree, List[Tree], Env) => js.Tree)(
         implicit env: Env): js.Tree = {
-      // println("unnest: " + arg0 + " " + args)
       unnest(arg0 :: args) { (newArgs, env) =>
         makeStat(newArgs.head, newArgs.tail, env)
       }
@@ -1428,7 +1417,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
       implicit val pos = rhs.pos
       tpe match {
         case RecordType(fields) =>
-          // println("RecordType")
           val elems = extractRecordElems(rhs)
           js.Block(for {
             (RecordType.Field(fName, fOrigName, fTpe, fMutable),
@@ -1439,7 +1427,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
           })
 
         case _ =>
-          // println("not RecordType")
           genLet(ident, mutable, transformExpr(rhs, tpe))
       }
     }
@@ -1523,7 +1510,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
 
       /** Push the current lhs further into a deeper rhs. */
       @inline def redo(newRhs: Tree)(implicit env: Env) = {
-        // println(s"redoing $lhs into $newRhs")
         pushLhsInto(lhs, newRhs, tailPosLabels)
       }
 
@@ -1573,7 +1559,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
       }
 
       if (rhs.tpe == NothingType && lhs != Lhs.Discard) {
-        // println("pushLhsInto:then")
         /* A touch of peephole dead code elimination.
          * Actually necessary to handle pushing an lhs into an infinite loop,
          * for example.
@@ -1590,10 +1575,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
             transformedRhs
         }
       } else {
-        // println("pushLhsInto:else")
-
-        // println("lhs = " + lhs)
-        // println("rhs = " + rhs)
         rhs match {
         // Handle the Block before testing whether it is an expression
 
@@ -1605,26 +1586,19 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
         // Base case, rhs is already a regular JS expression
 
         case _ if isExpression(rhs) =>
-          // println("isExpression")
           lhs match {
             case Lhs.Discard =>
-              // println("Lhs.Discard")
               if (isSideEffectFreeExpression(rhs)) js.Skip()
               else transformExpr(rhs, preserveChar = true)
             case Lhs.VarDef(name, tpe, mutable) =>
-              // println("Lhs.VarDef")
               doVarDef(name, tpe, mutable, rhs)
             case Lhs.Assign(lhs) =>
-              // println("Lhs.Assign")
               doAssign(lhs, rhs)
             case Lhs.ReturnFromFunction =>
-              // println("Lhs.ReturnFromFunction")
               js.Return(transformExpr(rhs, env.expectedReturnType))
             case Lhs.Return(l) =>
-              // println("Lhs.Return")
               doReturnToLabel(l)
             case Lhs.Throw =>
-              // println("Lhs.Throw")
               js.Throw(transformExprNoChar(rhs))
           }
 
@@ -1752,7 +1726,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
           }
 
         case Apply(flags, receiver, method, args) =>
-          // println("Apply")
           unnest(receiver, args) { (newReceiver, newArgs, env) =>
             redo(Apply(flags, newReceiver, method, newArgs)(rhs.tpe))(env)
           }
@@ -2172,23 +2145,17 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
 
     def transformExpr(tree: Tree, expectedType: Type)(
         implicit env: Env): js.Tree = {
-      // println("transformExpr: " + tree)
       val transformedTree = transformExpr(tree, preserveChar = expectedType == CharType)
-      // println(transformedTree)
       transformedTree
     }
 
     def transformTypedArgs(methodName: MethodName, args: List[Tree])(
         implicit env: Env): List[js.Tree] = {
-      // println("transformTypedArgs: " + methodName + " " + args)
       if (args.forall(_.tpe != CharType)) {
-        // println("transformTypedArgs: no char")
         // Fast path
         val res = args.map(transformExpr(_, preserveChar = true))
-        // println("fast path: " + res)
         res
       } else {
-        // println("transformTypedArgs: has char")
         args.zip(methodName.paramTypeRefs).map {
           case (arg, CharRef) => transformExpr(arg, preserveChar = true)
           case (arg, _)       => transformExpr(arg, preserveChar = false)
@@ -2238,7 +2205,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
         // Scala expressions
 
         case New(className, ctor, args) =>
-          // println("New: " + className + " " + ctor + " " + args)
           val newArgs = transformTypedArgs(ctor.name, args)
           genScalaClassNew(className, ctor.name, newArgs: _*)
 
@@ -2258,7 +2224,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
               jsNativeLoadSpec, keepOnlyDangerousVarNames = false))
 
         case Apply(_, receiver, method, args) =>
-          // println("transformExpr: Apply")
           val methodName = method.name
 
           def newReceiver(asChar: Boolean): js.Tree = {
@@ -2293,10 +2258,8 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
           def genHijackedMethodApply(className: ClassName): js.Tree =
             genApplyStaticLike("f", className, method, newReceiver(className == BoxedCharacterClass) :: newArgs)
 
-          // println("before if")
           if (isMaybeHijackedClass(receiver.tpe) &&
               !methodName.isReflectiveProxy) {
-            // println("transformExpr: Apply: isMaybeHijackedClass")
             receiver.tpe match {
               case AnyType =>
                 genDispatchApply()
@@ -2334,7 +2297,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
                 genHijackedMethodApply(typeToBoxedHijackedClass(tpe))
             }
           } else {
-            // println("transformExpr: Apply: !isMaybeHijackedClass")
             genNormalApply()
           }
 
@@ -2363,7 +2325,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
               transformTypedArgs(method.name, args))
 
         case tree: ApplyDynamicImport =>
-          // println("ApplyDynamicImport: " + tree)
           transformApplyDynamicImport(tree)
 
         case UnaryOp(op, lhs) =>
@@ -2959,7 +2920,6 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
         case FloatLiteral(value)    => js.DoubleLiteral(value.toDouble)
         case DoubleLiteral(value)   => js.DoubleLiteral(value)
         case StringLiteral(value)   => 
-          // println("StringLiteral: " + value)
           js.StringLiteral(value)
 
         case LongLiteral(0L) =>
@@ -3170,16 +3130,13 @@ private[replemitter] class FunctionEmitter(sjsGen: SJSGen) {
 
     def isMaybeHijackedClass(tpe: Type): Boolean = tpe match {
       case ClassType(className) =>
-        // println("isMaybeHijackedClass: ClassType(" + className + ")")
         HijackedClasses.contains(className) ||
         className != ObjectClass && globalKnowledge.isAncestorOfHijackedClass(className)
 
       case AnyType | UndefType | BooleanType | CharType | ByteType | ShortType |
           IntType | LongType | FloatType | DoubleType | StringType =>
-        // println("isHijackedClass: " + tpe)
         true
       case _ =>
-        // println("NotHijackedClass: " + tpe)
         false
     }
 

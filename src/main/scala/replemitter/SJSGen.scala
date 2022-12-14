@@ -405,10 +405,8 @@ private[replemitter] final class SJSGen(
   def genScalaClassNew(className: ClassName, ctor: MethodName, args: Tree*)(
       implicit globalKnowledge: GlobalKnowledge,
       pos: Position): Tree = {
-    val encodedClassVar = Apply(globalVar("a", className), Nil) // globalVar("c", className)
+    val encodedClassVar = Apply(globalVar("a", className), Nil)
     val argsList = args.toList
-    // println("globalKnowLedge: " + globalKnowledge)
-    // println("hasInlineableInit: " + globalKnowledge.hasInlineableInit(className))
     if (globalKnowledge.hasInlineableInit(className)) {
       New(encodedClassVar, argsList)
     } else {
