@@ -30,25 +30,26 @@ private[replemitter] final class KnowledgeGuardian(config: Emitter.Config) {
 
   private var specialInfo: SpecialInfo = _
   private val classes = mutable.Map.empty[ClassName, Class]
-  
-  def getAncestors(classDef: ClassDef) = {
-    calculateAncestors(classDef) // classes miss some keys
-  }
+  private val ancestors = mutable.Map.empty[ClassName, mutable.Set[ClassName]]
 
   def calculateAncestors(classDef: ClassDef): List[ClassName] = {
-    val ancestors = scala.collection.mutable.Set.empty[ClassName]
     val className = classDef.name.name
-    val superClass = classDef.superClass
-    val interfaces = classDef.interfaces
-    val parents = superClass.toList ::: interfaces
-    parents.foreach(parent => {
-      val parentName = parent.name
-      if (classes.contains(parentName))
-        ancestors ++= calculateAncestors(classes(parentName).getInitClass())
-    })
-    ancestors += ObjectClass
-    ancestors += className
-    ancestors.toList
+    if (ancestors.contains(className))
+      return ancestors(className).toList
+    else {
+      ancestors(className) = mutable.Set.empty
+      val superClass = classDef.superClass
+      val interfaces = classDef.interfaces
+      val parents = superClass.toList ::: interfaces
+      parents.foreach(parent => {
+        val parentName = parent.name
+        if (classes.contains(parentName))
+          ancestors(className) ++= calculateAncestors(classes(parentName).getInitClass())
+      })
+      ancestors(className) += ObjectClass
+      ancestors(className) += className
+      ancestors(className).toList
+    }
   }
 
   /** Returns `true` if *all* caches should be invalidated.
