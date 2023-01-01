@@ -22,11 +22,12 @@ object Main {
 	val counter = new java.util.concurrent.atomic.AtomicInteger(0)
   def main(args: Array[String]): Unit = {
 
+		// val interpreter = new Interpreter(Semantics.Defaults)
 		val interpreter = new Emitter(
 			new Emitter.Config(Semantics.Defaults, ModuleKind.NoModule, ESFeatures.Defaults)
 			  .withESFeatures(_.withAvoidClasses(false)))
 
-    js.Dynamic.global.Error.stackTraceLimit = 100
+    // js.Dynamic.global.Error.stackTraceLimit = 100
 
 		scalajsCom.init((msg: String) => {
 
@@ -48,10 +49,12 @@ object Main {
 				files.flatMap(irFiles => {// foreach because of Future
 					val result = interpreter.loadIRFiles(irFiles)
 					result.map(_ => {
-						scalajsCom.send("classpath files loaded") // An ack to the jvm side
+						scalajsCom.send("C") // An ack to the jvm side
 					})
 				}).recover {
 					case e: Exception => e.printStackTrace()
+					// Send an ack to the jvm side, but notify that there was an exception
+					scalajsCom.send("EC")				
 				}
 			}
 
@@ -64,10 +67,11 @@ object Main {
 				irFiles.flatMap(irFiles => {
 					val result = interpreter.loadIRFiles(irFiles)
 					result.map(_ => {
-						scalajsCom.send("Several sjsir files loaded") // An ack to the jvm side
+						scalajsCom.send("S") // An ack to the jvm side
 					})
 				}).recover {
-					case e: Exception => println(e)
+					case e: Exception => e.printStackTrace()
+					scalajsCom.send("ES")
 				}
 			}
 
@@ -88,9 +92,10 @@ object Main {
 						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
 					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
 				}).map(_ => {
-					scalajsCom.send(s"Loaded $objectName") // An ack to the jvm side
+					scalajsCom.send(s"L$objectName") // An ack to the jvm side
 				}).recover {
 					case e: Exception => e.printStackTrace()
+					scalajsCom.send(s"EL$objectName")
 				}
 			}
 
@@ -113,13 +118,29 @@ object Main {
 					case 'F' => FloatRef
 					case 'D' => DoubleRef
 					case 'L' => ClassRef(ClassName(irTypeStr.substring(1)))
-				}
+					case 'A' => 
+						val displayName = irTypeStr.substring(1)
+						val dimensions = displayName.takeWhile(_ == '[').length
+						val baseDisplayName = displayName.substring(dimensions)
+						ArrayTypeRef(baseDisplayName match {
+							case "void" => VoidRef
+							case "boolean" => BooleanRef
+							case "char" => CharRef
+							case "byte" => ByteRef
+							case "short" => ShortRef
+							case "int" => IntRef
+							case "long" => LongRef
+							case "float" => FloatRef
+							case "double" => DoubleRef
+							case _ => ClassRef(ClassName(baseDisplayName))
+						}, dimensions)
+					}
 
 				var className = ClassName(objectNameReceivedFromJVM)
 				val simpleMethodName = SimpleMethodName(methodNameReceivedFromJVM)
 				val methodName = MethodName(simpleMethodName, Nil, irType)
 				val apply = Apply(ApplyFlags.empty, LoadModule(className), MethodIdent(methodName), Nil)(NoType)
-				val resultString = BinaryOp(BinaryOp.String_+, StringLiteral(""), apply)
+				val resultString = BinaryOp(BinaryOp.String_+, StringLiteral(""), apply) // Could change to pretty printing with replStringOf
 				val scalajsComSend = JSMethodApply(JSGlobalRef("scalajsCom"), StringLiteral("send"), List(resultString))
 				val classDef = IRBuilder.mainClassDef(scalajsComSend, counter.get())
 				val irFile = MemClassDefIRFile(classDef)
@@ -129,9 +150,9 @@ object Main {
 					interpreter.runModuleInitializers(ModuleInitializer.mainMethodWithArgs(
 						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
 					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
-				}).map(_ => {
-				}).recover {
+				}).map(_ => {}).recover {
 					case e: Exception => e.printStackTrace()
+					scalajsCom.send(s"EV$objectNameAndMethodName")
 				}
 			}
 		})
