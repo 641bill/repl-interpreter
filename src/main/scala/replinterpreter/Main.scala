@@ -38,6 +38,7 @@ object Main {
 
 			// case 1: msg starts with "classpath:"
 			if (msg.startsWith("classpath:")) {
+				println("classpath")
 				val path = msg.substring("classpath:".length)
 				val jars = NodeIRContainer.fromClasspath(path.split(':').toList)
 
@@ -52,14 +53,17 @@ object Main {
 						scalajsCom.send("C") // An ack to the jvm side
 					})
 				}).recover {
-					case e: Exception => e.printStackTrace()
+					case e: Exception => 
+						e.printStackTrace()
 					// Send an ack to the jvm side, but notify that there was an exception
-					scalajsCom.send("EC")				
+						scalajsCom.send("EC")				
 				}
 			}
 
 			// case 2: msg starts with "irfiles:"
 			else if (msg.startsWith("irfiles:")) {
+				println("irfiles")
+				
 				val paths = msg.substring("irfiles:".length)
 				val irFiles: Future[List[IRFile]] = Future.sequence(
 					paths.split(",").map(NodeIRFile(_)).toList)
@@ -70,14 +74,17 @@ object Main {
 						scalajsCom.send("S") // An ack to the jvm side
 					})
 				}).recover {
-					case e: Exception => e.printStackTrace()
-					scalajsCom.send("ES")
+					case e: Exception => 
+						e.printStackTrace()
+						scalajsCom.send("ES")
 				}
 			}
 
 			// case 3: objectName
 			// synthesize a class with a main method that loads the module
 			else if (msg.startsWith("objectName:")) {
+				println(msg)
+				
 				val objectName = msg.substring("objectName:".length)
 
 				var className = ClassName(objectName)
@@ -94,13 +101,15 @@ object Main {
 				}).map(_ => {
 					scalajsCom.send(s"L$objectName") // An ack to the jvm side
 				}).recover {
-					case e: Exception => e.printStackTrace()
-					scalajsCom.send(s"EL$objectName")
+					case e: Exception => 
+						e.printStackTrace()
+						scalajsCom.send(s"EL$objectName")
 				}
 			}
 
 			// case 4: objectName and methodName
 			else if (msg.startsWith("objectNameAndMethodName:")) {
+				println(msg)
 				val objectNameAndMethodName = msg.substring("objectNameAndMethodName:".length).split(":")
 				val objectNameReceivedFromJVM = if (objectNameAndMethodName(0).last != '$')
 					objectNameAndMethodName(0) + "$" 
@@ -151,8 +160,9 @@ object Main {
 						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
 					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
 				}).map(_ => {}).recover {
-					case e: Exception => e.printStackTrace()
-					scalajsCom.send(s"EV$objectNameAndMethodName")
+					case e: Exception => 
+						e.printStackTrace()
+						scalajsCom.send(s"EV$objectNameAndMethodName")
 				}
 			}
 		})
