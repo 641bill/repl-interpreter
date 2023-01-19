@@ -196,9 +196,9 @@ final class Emitter(config: Emitter.Config) {
     val generatedCode = stringWriter.toString()
 
     // Write to file
-    // scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code" + counter.addAndGet(1) + ".js", generatedCode)
+    scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code" + counter.get() + ".js", generatedCode)
 
-    val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code" + counter.get() + ".js"))
+    val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code" + counter.getAndAdd(1) + ".js"))
     script.runInThisContext()
     ()
   }
@@ -212,9 +212,9 @@ final class Emitter(config: Emitter.Config) {
     )(Position.NoPosition)
 
     // Write to file
-    // scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code-run" + moduleInitializerCounter.getAndAdd(1) + ".js", defTrees.show)
+    scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code-run" + moduleInitializerCounter.get() + ".js", defTrees.show)
     
-    val script = new Script(defTrees.show, scala.scalajs.js.Dynamic.literal(filename = "generated-code-run" + moduleInitializerCounter.get() + ".js"))
+    val script = new Script(defTrees.show, scala.scalajs.js.Dynamic.literal(filename = "generated-code-run" + moduleInitializerCounter.getAndAdd(1) + ".js"))
     script.runInThisContext()
     Future[Unit](())
   }

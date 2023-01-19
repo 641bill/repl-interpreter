@@ -52,9 +52,10 @@ object Main {
 						scalajsCom.send("C") // An ack to the jvm side
 					})
 				}).recover {
-					case e: Exception => e.printStackTrace()
+					case e: Exception => 
+						e.printStackTrace()
 					// Send an ack to the jvm side, but notify that there was an exception
-					scalajsCom.send("EC")				
+						scalajsCom.send("EC")				
 				}
 			}
 
@@ -70,8 +71,9 @@ object Main {
 						scalajsCom.send("S") // An ack to the jvm side
 					})
 				}).recover {
-					case e: Exception => e.printStackTrace()
-					scalajsCom.send("ES")
+					case e: Exception => 
+						e.printStackTrace()
+						scalajsCom.send("ES")
 				}
 			}
 
@@ -94,8 +96,9 @@ object Main {
 				}).map(_ => {
 					scalajsCom.send(s"L$objectName") // An ack to the jvm side
 				}).recover {
-					case e: Exception => e.printStackTrace()
-					scalajsCom.send(s"EL$objectName")
+					case e: Exception => 
+						e.printStackTrace()
+						scalajsCom.send(s"EL$objectName")
 				}
 			}
 
@@ -151,8 +154,9 @@ object Main {
 						IRBuilder.MainClassName.nameString + counter.getAndIncrement(),
 					IRBuilder.MainMethodName.simpleName.nameString) :: Nil)
 				}).map(_ => {}).recover {
-					case e: Exception => e.printStackTrace()
-					scalajsCom.send(s"EV$objectNameAndMethodName")
+					case e: Exception => 
+						e.printStackTrace()
+						scalajsCom.send(s"EV$objectNameAndMethodName")
 				}
 			}
 		})
