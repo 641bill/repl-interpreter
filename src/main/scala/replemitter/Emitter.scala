@@ -205,7 +205,7 @@ final class Emitter(config: Emitter.Config) {
     // Write to file
     scala.scalajs.js.Dynamic.global.require("fs").writeFileSync("generated-code" + counter.get() + ".js", generatedCode)
 
-    println("Generated file's name: generated-code" + counter.get() + ".js")
+    // println("Generated file's name: generated-code" + counter.get() + ".js")
 
     val script = new Script(generatedCode, scala.scalajs.js.Dynamic.literal(filename = "generated-code" + counter.getAndAdd(1) + ".js"))
     script.runInThisContext()

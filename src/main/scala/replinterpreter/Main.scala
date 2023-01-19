@@ -38,7 +38,6 @@ object Main {
 
 			// case 1: msg starts with "classpath:"
 			if (msg.startsWith("classpath:")) {
-				println("classpath")
 				val path = msg.substring("classpath:".length)
 				val jars = NodeIRContainer.fromClasspath(path.split(':').toList)
 
@@ -55,15 +54,13 @@ object Main {
 				}).recover {
 					case e: Exception => 
 						e.printStackTrace()
-					// Send an ack to the jvm side, but notify that there was an exception
+						// Send an ack to the jvm side, but notify that there was an exception
 						scalajsCom.send("EC")				
 				}
 			}
 
 			// case 2: msg starts with "irfiles:"
 			else if (msg.startsWith("irfiles:")) {
-				println("irfiles")
-				
 				val paths = msg.substring("irfiles:".length)
 				val irFiles: Future[List[IRFile]] = Future.sequence(
 					paths.split(",").map(NodeIRFile(_)).toList)
@@ -83,8 +80,6 @@ object Main {
 			// case 3: objectName
 			// synthesize a class with a main method that loads the module
 			else if (msg.startsWith("objectName:")) {
-				println(msg)
-				
 				val objectName = msg.substring("objectName:".length)
 
 				var className = ClassName(objectName)
@@ -109,7 +104,6 @@ object Main {
 
 			// case 4: objectName and methodName
 			else if (msg.startsWith("objectNameAndMethodName:")) {
-				println(msg)
 				val objectNameAndMethodName = msg.substring("objectNameAndMethodName:".length).split(":")
 				val objectNameReceivedFromJVM = if (objectNameAndMethodName(0).last != '$')
 					objectNameAndMethodName(0) + "$" 
