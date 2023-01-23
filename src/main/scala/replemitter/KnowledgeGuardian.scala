@@ -34,7 +34,7 @@ private[replemitter] final class KnowledgeGuardian(config: Emitter.Config) {
 
   def calculateAncestors(classDef: ClassDef): List[ClassName] = {
     val className = classDef.name.name
-    if (ancestors.contains(className))
+    if (ancestors != null && ancestors.contains(className))
       return ancestors(className).toList
     else {
       ancestors(className) = mutable.Set.empty
@@ -548,6 +548,7 @@ private[replemitter] final class KnowledgeGuardian(config: Emitter.Config) {
     private val isClassClassInstantiatedAskers = mutable.Set.empty[Invalidatable]
     private val methodsInRepresentativeClassesAskers = mutable.Set.empty[Invalidatable]
     private val methodsInObjectAskers = mutable.Set.empty[Invalidatable]
+    private var cachedAncestors = mutable.Map.empty[ClassName, List[ClassName]]
 
     def update(objectClass: Option[ClassDef], classClass: Option[ClassDef],
         hijackedClasses: Iterable[ClassDef]): Boolean = {
@@ -631,13 +632,13 @@ private[replemitter] final class KnowledgeGuardian(config: Emitter.Config) {
           filter(_.flags.namespace == MemberNamespace.Public))
     }
 
-    private val cachedAncestors = mutable.Map.empty[ClassName, List[ClassName]]
-
     // Recursively calculate all ancestors by walking the inheritance hierarchy
     // using the information from classes: mutable.Map.empty[ClassName, Class]
     def calculateAncestors(classDef: ClassDef): List[ClassName] = {
-      if (cachedAncestors.contains(classDef.className)) {
+      if (cachedAncestors != null && cachedAncestors.contains(classDef.className)) {
         return cachedAncestors(classDef.className)
+      } else if (cachedAncestors == null) {
+        cachedAncestors = mutable.Map.empty[ClassName, List[ClassName]]
       }
       val ancestors = mutable.ListBuffer[ClassName]()
       val className = classDef.name.name
