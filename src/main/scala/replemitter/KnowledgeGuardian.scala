@@ -631,21 +631,27 @@ private[replemitter] final class KnowledgeGuardian(config: Emitter.Config) {
           filter(_.flags.namespace == MemberNamespace.Public))
     }
 
+    private val cachedAncestors = mutable.Map.empty[ClassName, List[ClassName]]
+
     // Recursively calculate all ancestors by walking the inheritance hierarchy
     // using the information from classes: mutable.Map.empty[ClassName, Class]
     def calculateAncestors(classDef: ClassDef): List[ClassName] = {
-      var ancestors = List[ClassName]()
-      val className = classDef.name.name
-      val superClass = classDef.superClass
-      if (superClass.isDefined) {
-        val superClassName = superClass.get.name
-        if (superClassName != className && classes.contains(superClassName)) 
-          ancestors = calculateAncestors(classes(superClassName).getInitClass())
+      if (cachedAncestors.contains(classDef.className)) {
+        return cachedAncestors(classDef.className)
       }
-      ancestors
+      val ancestors = mutable.ListBuffer[ClassName]()
+      val className = classDef.name.name
+      ancestors += className
+      val parents = classDef.superClass.toList ::: classDef.interfaces
+      for (parent <- parents) {
+        val parentName = parent.name
+        if (classes.contains(parentName)) 
+          ancestors ++= calculateAncestors(classes(parentName).getInitClass())
+      }
+      cachedAncestors += (className -> ancestors.toList)
+      ancestors.toList.distinct
     }
     
-
     private def computeHijackedDescendants(
         hijackedClasses: Iterable[ClassDef]): Map[ClassName, Set[ClassName]] = {
       val pairs = for {
