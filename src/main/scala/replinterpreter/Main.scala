@@ -144,7 +144,7 @@ object Main {
 				val methodName = MethodName(simpleMethodName, Nil, irType)
 				val apply = Apply(ApplyFlags.empty, LoadModule(className), MethodIdent(methodName), Nil)(NoType)
 				val resultString = BinaryOp(BinaryOp.String_+, StringLiteral(""), apply) // Could change to pretty printing with replStringOf
-				val scalajsComSend = JSMethodApply(JSGlobalRef("scalajsCom"), StringLiteral("send"), List(resultString))
+				val scalajsComSend = JSMethodApply(JSGlobalRef("scalajsCom"), StringLiteral("send"), List(resultString)) // Ideally, make a try-catch block in the generated code
 				val classDef = IRBuilder.mainClassDef(scalajsComSend, counter.get())
 				val irFile = MemClassDefIRFile(classDef)
 				val result = interpreter.loadIRFiles(List(irFile))
