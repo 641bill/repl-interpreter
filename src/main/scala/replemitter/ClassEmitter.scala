@@ -43,7 +43,7 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
   import varGen._
 
   def buildClass(tree: ClassDef, useESClass: Boolean, ctor: js.Tree,
-      memberDefs: List[js.MethodDef], exportedDefs: js.Tree, typeData: js.Tree, setTypeData: js.Tree)(
+      memberDefs: List[js.MethodDef], exportedDefs: js.Tree, setTypeData: js.Tree)(
       implicit globalKnowledge: GlobalKnowledge): WithGlobals[js.Tree] = {
 
     implicit val pos = tree.pos
@@ -796,10 +796,9 @@ private[replemitter] final class ClassEmitter(sjsGen: SJSGen) {
         ident.pos)
   }
 
-  def needInstanceTests(tree: LinkedClass)(
+  def needInstanceTests(tree: ClassDef)(
       implicit globalKnowledge: GlobalKnowledge): Boolean = {
-    tree.hasInstanceTests || (tree.hasRuntimeTypeInfo &&
-        globalKnowledge.isAncestorOfHijackedClass(tree.className))
+        true
   }
 
   def genInstanceTests(tree: ClassDef)(

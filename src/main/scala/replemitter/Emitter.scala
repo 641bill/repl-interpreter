@@ -368,13 +368,12 @@ final class Emitter(config: Emitter.Config) {
 
       // Exported members
       val exportedMembers = classEmitter.genExportedMembers(classDef, useESClass)(classCache).value
-      val typeData = classEmitter.genTypeData(classDef)(uncachedKnowledge, knowledgeGuardian).value
-      val setTypeData = if (kind.isClass) classEmitter.genSetTypeData(classDef)(classCache) else js.Skip()
+      val setTypeData = if (kind.isClass && className != ObjectClass) classEmitter.genSetTypeData(classDef)(classCache) else js.Skip()
       val fullClass = for {
         ctor <- ctorWithGlobals
         memberMethods <- WithGlobals.list(memberMethodsWithGlobals)
         clazz <- classEmitter.buildClass(classDef, useESClass, ctor,
-            memberMethods, exportedMembers, typeData, setTypeData)(classCache)
+            memberMethods, exportedMembers, setTypeData)(classCache)
       } yield {
         clazz
       }
@@ -382,16 +381,24 @@ final class Emitter(config: Emitter.Config) {
       main += fullClass.value
     }
 
-    main += classEmitter.genTypeData(classDef)(uncachedKnowledge, knowledgeGuardian).value
+    if (className != ObjectClass) {
+      /* Instance tests and type data are hardcoded in the CoreJSLib for
+       * j.l.Object. This is important because their definitions depend on the
+       * `$TypeData` definition, which only comes in the `postObjectDefinitions`
+       * of the CoreJSLib. If we wanted to define them here as part of the
+       * normal logic of `ClassEmitter`, we would have to further divide `main`
+       * into two parts. Since the code paths are in fact completely different
+       * for `j.l.Object` anyway, we do not do this, and instead hard-code them
+       * in the CoreJSLib. This explains why we exclude `j.l.Object` as this
+       * level, rather than inside `ClassEmitter.needInstanceTests` and
+       * similar: it is a concern that goes beyond the organization of the
+       * class `j.l.Object`.
+       */
 
-    if (className != ObjectClass)
-      main += classEmitter.genInstanceTests(classDef)(classCache).value
+      main += classEmitter.genTypeData(classDef)(uncachedKnowledge, knowledgeGuardian).value
 
-    if (!kind.isAnyNonNativeClass) {
-        main += classEmitter.genTypeData(classDef)(uncachedKnowledge, knowledgeGuardian).value
-        if (className != ObjectClass && classDef.kind.isClass) {
-          main += classEmitter.genSetTypeData(classDef)(classCache)
-        }
+      if (classEmitter.needInstanceTests(classDef)(classCache)) 
+        main += classEmitter.genInstanceTests(classDef)(classCache).value
     }
 
     if (classDef.kind.hasModuleAccessor) {
