@@ -93,7 +93,7 @@ final class Emitter(config: Emitter.Config) {
 	val coreJSLibFlag = new java.util.concurrent.atomic.AtomicBoolean(true)
 
   // Don't generate classDefs with the same name twice
-  var classNameSet = Set.empty[String]
+  val classNameSet = mutable.Set.empty[String]
 
   def loadIRFiles(irFiles: Seq[IRFile]): Future[Unit] = {
     import ExecutionContext.Implicits.global
