@@ -47,6 +47,7 @@ object Main {
 					libIRFiles.map(_.flatten)
 				}
 				files.flatMap(irFiles => {// foreach because of Future
+					interpreter.classNameSet.clear()
 					val result = interpreter.loadIRFiles(irFiles)
 					result.map(_ => {
 						scalajsCom.send("C") // An ack to the jvm side
